@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<!--
+  P5 · 浅暖灰「报刊分栏」（PC 性能监控）
+  画面：左栏 CPU / 内存大字，右栏 GPU / 磁盘 / 网络小字条；竖线分栏。
+  自身取舍：底色用暖灰而非纯白。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>P5 · 性能分栏</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 320px; height: 240px;
+    overflow: hidden;
+    background: #b9b3a8;
+    font-family: "Songti SC", "SimSun", "Microsoft YaHei", serif;
+    display: block;
+  }
+  #stage { position: absolute; left: 0; top: 0; width: 320px; height: 240px; overflow: hidden; }
+  #img, #render, #text { position: absolute; left: 0; top: 0; width: 320px; height: 240px; }
+  #img { z-index: 1; } #render { z-index: 2; } #text { z-index: 3; }
+
+  /* ---- 主题：暖灰报刊 ---- */
+  #img { background: linear-gradient(175deg, #c0bab0 0%, #b0a99e 100%); }
+  .rule  { position: absolute; height: 1px; background: #8d8578; }
+  .rule2 { position: absolute; height: 3px; background: #6f675b; }
+  .vline { position: absolute; width: 1px; background: #9b9386; }
+  .bar-track { position: absolute; height: 4px; background: #a89f92; }
+  .bar { position: absolute; left: 0; top: 0; height: 4px;
+         background: #6f4d2a; transition: none; }
+
+  .txt { position: absolute; line-height: 1; white-space: nowrap;
+         font-variant-numeric: tabular-nums; }
+  .mast{ font-size: 13px; font-weight: 700; color: #26221c; letter-spacing: 2px; }
+  .date{ font-size: 10px; color: #332d24; }
+  .colh{ font-size: 10px; color: #332d24; letter-spacing: 1px; }
+  .huge{ font-size: 34px; font-weight: 700; color: #1d1a15; }
+  .mid { font-size: 26px; font-weight: 700; color: #1d1a15; }
+  .unit{ font-size: 12px; color: #332d24; }
+  .rl  { font-size: 11px; color: #332d24; }
+  .rv  { font-size: 13px; font-weight: 700; color: #1d1a15; }
+  .foot{ font-size: 11px; color: #332d24; }
+  .warn   { color: #8a4b0f !important; }
+  .danger { color: #a02c22 !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="img"></div>
+
+  <div id="render">
+    <div class="rule2" style="left:12px;top:32px;width:296px;"></div>
+    <div class="rule" style="left:12px;top:36px;width:296px;"></div>
+    <div class="vline" style="left:162px;top:44px;height:158px;"></div>
+    <div class="rule" style="left:12px;top:204px;width:296px;"></div>
+
+    <div class="bar-track" style="left:12px;top:112px;width:138px;"></div>
+    <div class="bar-track" style="left:12px;top:186px;width:138px;"></div>
+
+    <div class="rule" style="left:172px;top:74px;width:140px;"></div>
+    <div class="rule" style="left:172px;top:104px;width:140px;"></div>
+    <div class="rule" style="left:172px;top:134px;width:140px;"></div>
+    <div class="rule" style="left:172px;top:164px;width:140px;"></div>
+  </div>
+
+  <div id="text">
+    <span class="txt mast" style="left:12px;top:11px;">系统性能日报</span>
+    <span class="txt date" style="left:236px;top:14px;">PERFORMANCE</span>
+
+    <span class="txt colh" style="left:12px;top:44px;">主指标 / PRIMARY</span>
+
+    <span class="txt colh" style="left:12px;top:60px;">CPU 处理器</span>
+    <span class="txt huge" data-slot="cpu_load" style="right:222px;top:72px;" data-fmt="0" data-warn="75" data-danger="90">{{cpu_load}}</span>
+    <span class="txt unit" style="left:100px;top:90px;">%</span>
+    <div class="bar" data-slot="bar1" data-kind="bar" data-from="cpu_load" data-max="100" data-box="12,112,138,4" style="left:12px;top:112px;width:0;"></div>
+
+    <span class="txt colh" style="left:12px;top:132px;">内存 MEMORY</span>
+    <span class="txt mid" data-slot="mem_pct" style="right:222px;top:146px;" data-fmt="0" data-warn="80" data-danger="92">{{mem_pct}}</span>
+    <span class="txt unit" style="left:100px;top:160px;">%</span>
+    <div class="bar" data-slot="bar2" data-kind="bar" data-from="mem_pct" data-max="100" data-box="12,186,138,4" style="left:12px;top:186px;width:0;"></div>
+
+    <span class="txt colh" style="left:172px;top:44px;">分项 / DETAIL</span>
+
+    <span class="txt rl" style="left:172px;top:58px;">GPU 显卡</span>
+    <span class="txt rv" data-slot="gpu1_load" style="right:16px;top:56px;" data-fmt="0" data-unit="%" data-suffix="%">{{gpu1_load}}</span>
+    <span class="txt rl" style="left:172px;top:88px;">磁盘 占用</span>
+    <span class="txt rv" data-slot="disk1_pct" style="right:16px;top:86px;" data-fmt="0" data-unit="%" data-suffix="%">{{disk1_pct}}</span>
+    <span class="txt rl" style="left:172px;top:118px;">网络 上行</span>
+    <span class="txt rv" data-slot="net1_up" data-unit="KB/s" style="right:16px;top:116px;" data-fmt="1" data-suffix=" KB/s">{{net1_up}}</span>
+    <span class="txt rl" style="left:172px;top:148px;">网络 下行</span>
+    <span class="txt rv" data-slot="net1_down" data-unit="KB/s" style="right:16px;top:146px;" data-fmt="1" data-suffix=" KB/s">{{net1_down}}</span>
+    
+    
+
+    <span class="txt foot" style="left:12px;top:212px;">每 0.5 秒采样 · sampled every 0.5s</span>
+    <span class="txt foot" style="left:274px;top:212px;">第 1 版</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  function fmt(spec, raw) {
+    var v = parseFloat(raw);
+    if (isNaN(v)) return String(raw);
+    var dec = spec.getAttribute('data-fmt');
+    var s = (dec === null) ? String(raw) : v.toFixed(parseInt(dec, 10));
+    if (spec.getAttribute('data-group') === '1') s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return s + (spec.getAttribute('data-suffix') || '');
+  }
+  function thresholds(spec) {
+    var w = spec.getAttribute('data-warn'), d = spec.getAttribute('data-danger');
+    if (w === null && d === null && spec.getAttribute('data-from')) {
+      var src = document.querySelector('[data-slot="' + spec.getAttribute('data-from') + '"]');
+      if (src) { w = src.getAttribute('data-warn'); d = src.getAttribute('data-danger'); }
+    }
+    return [w === null ? null : parseFloat(w), d === null ? null : parseFloat(d)];
+  }
+  function paint(spec, raw) {
+    var v = parseFloat(raw), th = thresholds(spec);
+    spec.classList.toggle('warn',   th[0] !== null && v >= th[0] && !(th[1] !== null && v >= th[1]));
+    spec.classList.toggle('danger', th[1] !== null && v >= th[1]);
+  }
+  function setBar(spec, raw) {
+    var v = parseFloat(raw), max = parseFloat(spec.getAttribute('data-max') || '100');
+    var box = (spec.getAttribute('data-box') || '0,0,100,4').split(',');
+    spec.style.width = Math.round(Math.max(0, Math.min(1, (isNaN(v) ? 0 : v) / max)) * parseFloat(box[2])) + 'px';
+    paint(spec, raw);
+  }
+  window.__setSlot = function (name, value) {
+    var specs = document.querySelectorAll('[data-slot="' + name + '"]');
+    for (var i = 0; i < specs.length; i++) {
+      var el = specs[i];
+      if (el.getAttribute('data-kind') === 'bar') { setBar(el, value); continue; }
+      el.textContent = fmt(el, value);
+      paint(el, value);
+    }
+    var bars = document.querySelectorAll('[data-kind="bar"][data-from="' + name + '"]');
+    for (var j = 0; j < bars.length; j++) setBar(bars[j], value);
+    return true;
+  };
+  window.__setSlot('cpu_load', '42'); window.__setSlot('mem_pct', '61'); window.__setSlot('gpu1_load', '63');
+  window.__setSlot('disk1_pct', '55'); window.__setSlot('net1_up', '12.4'); window.__setSlot('net1_down', '88.1');
+  q.forEach(function (v, k) { window.__setSlot(k, v); });
+})();
+</script>
+<script type="application/json" id="material-manifest">
+{
+  "schema": "rgb565-panel-material/1",
+  "name": "p5_paper_columns",
+  "size": [
+    320,
+    240
+  ],
+  "background": "css",
+  "slots": [
+    {
+      "name": "cpu_load",
+      "kind": "text",
+      "warn": 75,
+      "danger": 90,
+      "fmt": 0
+    },
+    {
+      "name": "bar1",
+      "kind": "bar",
+      "from": "cpu_load",
+      "max": 100
+    },
+    {
+      "name": "mem_pct",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0
+    },
+    {
+      "name": "bar2",
+      "kind": "bar",
+      "from": "mem_pct",
+      "max": 100
+    },
+    {
+      "name": "gpu1_load",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "disk1_pct",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "net1_up",
+      "kind": "text",
+      "fmt": 1,
+      "unit": "KB/s"
+    },
+    {
+      "name": "net1_down",
+      "kind": "text",
+      "fmt": 1,
+      "unit": "KB/s"
+    }
+  ]
+}
+</script>
+</body>
+</html>

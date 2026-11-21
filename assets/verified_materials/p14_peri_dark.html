@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<!--
+  P17 · 键鼠电量（深色卡片）· V2 320x240（测试用）
+  测试素材：数据槽只取自「外设」第二条通道（GET /peripherals），
+  槽名 = mouse1_* / kbd1_* / peri_count；取不到时值是「—」，原样显示。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>键鼠电量 · 深色卡片</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 320px; height: 240px;
+    overflow: hidden; display: block;
+    background: #12151f;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+  #stage { position: absolute; left: 0; top: 0; width: 320px; height: 240px; overflow: hidden; }
+  #img, #render, #text { position: absolute; left: 0; top: 0; width: 320px; height: 240px; }
+  #img { z-index: 1; } #render { z-index: 2; } #text { z-index: 3; }
+  #img { background:
+      radial-gradient(circle at 88% 2%, rgba(124,140,255,.16) 0%, transparent 52%),
+      linear-gradient(170deg, #12151f 0%, #171c2b 100%); }
+  .card { position: absolute; border-radius: 8px; background: #1b2130;
+          border: 1px solid rgba(124,140,255,.22); }
+  .bar-track { position: absolute; border-radius: 3px; background: #242b3d; }
+  .bar { position: absolute; left: 0; top: 0; border-radius: 3px;
+         background: linear-gradient(90deg, #7c8cff, #a855f7); }
+  .txt { position: absolute; line-height: 1; white-space: nowrap;
+         font-variant-numeric: tabular-nums; }
+  .ttl { font-size: 13px; font-weight: 700; color: #e6e9f8; letter-spacing: 1px; }
+  .cnt { font-size: 11px; color: #9aa3b8; }
+  .nm  { font-size: 13px; font-weight: 700; color: #dfe4f7; }
+  .st  { font-size: 11px; color: #9aa3b8; }
+  .big { font-size: 28px; font-weight: 700; color: #f2f4ff; }
+  .foot{ font-size: 11px; color: #8b94ad; }
+  .warn   { color: #fbbf24 !important; }
+  .danger { color: #f87171 !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="img"></div>
+  <div id="render">
+    <div class="card" style="left:10px;top:32px;width:300px;height:88px;"></div>
+    <div class="card" style="left:10px;top:130px;width:300px;height:88px;"></div>
+    <div class="bar-track" style="left:20px;top:102px;width:280px;height:6px;"></div>
+    <div class="bar-track" style="left:20px;top:200px;width:280px;height:6px;"></div>
+    <div class="bar" data-slot="mouse1_bar" data-kind="bar" data-from="mouse1_pct" data-max="100"
+         data-box="20,102,280,6" style="left:20px;top:102px;width:0;height:6px;"></div>
+    <div class="bar" data-slot="kbd1_bar" data-kind="bar" data-from="kbd1_pct" data-max="100"
+         data-box="20,200,280,6" style="left:20px;top:200px;width:0;height:6px;"></div>
+  </div>
+  <div id="text">
+    <span class="txt ttl" style="left:14px;top:10px;">外设电量 PERIPHERALS</span>
+    <span class="txt cnt" data-slot="peri_count" style="right:14px;top:11px;"
+          data-suffix=" 台">{{peri_count}}</span>
+
+    <span class="txt nm" data-slot="mouse1_name" style="left:20px;top:42px;">{{mouse1_name}}</span>
+    <span class="txt st" data-slot="mouse1_status" style="right:20px;top:43px;">{{mouse1_status}}</span>
+    <span class="txt big" data-slot="mouse1_pct" style="left:20px;top:62px;"
+          data-fmt="0" data-unit="%" data-suffix="%" data-low-warn="30" data-low-danger="15">{{mouse1_pct}}</span>
+
+    <span class="txt nm" data-slot="kbd1_name" style="left:20px;top:140px;">{{kbd1_name}}</span>
+    <span class="txt st" data-slot="kbd1_status" style="right:20px;top:141px;">{{kbd1_status}}</span>
+    <span class="txt big" data-slot="kbd1_pct" style="left:20px;top:160px;"
+          data-fmt="0" data-unit="%" data-suffix="%" data-low-warn="30" data-low-danger="15">{{kbd1_pct}}</span>
+
+    <span class="txt foot" style="left:14px;top:226px;">测试素材 · 数据来自 /peripherals</span>
+  </div>
+</div>
+<script>
+(function () {
+  function num(v) { var f = parseFloat(v); return isNaN(f) ? null : f; }
+  function tx(el, raw) {
+    var v = num(raw);
+    if (v === null) return String(raw);
+    var d = el.getAttribute('data-fmt');
+    var s = (d === null) ? String(raw) : v.toFixed(parseInt(d, 10));
+    if (el.getAttribute('data-group') === '1') s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return s + (el.getAttribute('data-suffix') || '');
+  }
+  function th(el) {
+    var w = el.getAttribute('data-warn'), g = el.getAttribute('data-danger');
+    if (w === null && g === null && el.getAttribute('data-from')) {
+      var s = document.querySelector('[data-slot="' + el.getAttribute('data-from') + '"]');
+      if (s) { w = s.getAttribute('data-warn'); g = s.getAttribute('data-danger'); }
+    }
+    return [w === null ? null : parseFloat(w), g === null ? null : parseFloat(g)];
+  }
+  /* 电量是「越低越糟」，方向与 data-warn（越高越糟）相反：
+     data-low-warn / data-low-danger 表示「小于等于阈值」时转黄 / 转红，danger 优先。 */
+  function low(el, v) {
+    var w = el.getAttribute('data-low-warn'), g = el.getAttribute('data-low-danger');
+    if (v === null || (w === null && g === null)) return [false, false];
+    var d = (g !== null && v <= parseFloat(g));
+    return [w !== null && v <= parseFloat(w) && !d, d];
+  }
+  function cl(el, raw) {
+    var v = num(raw), t = th(el), l = low(el, v);
+    el.classList.toggle('warn',
+      l[0] || (v !== null && t[0] !== null && v >= t[0] && !(t[1] !== null && v >= t[1])));
+    el.classList.toggle('danger', l[1] || (v !== null && t[1] !== null && v >= t[1]));
+  }
+  function bar(el, raw) {
+    var v = num(raw), m = parseFloat(el.getAttribute('data-max') || '100');
+    var b = (el.getAttribute('data-box') || '0,0,100,4').split(',');
+    var p = (v === null) ? 0 : Math.max(0, Math.min(1, v / m));
+    el.style.width = Math.round(p * parseFloat(b[2])) + 'px';
+    cl(el, raw);
+  }
+  window.__setSlot = function (name, value) {
+    var els = document.querySelectorAll('[data-slot="' + name + '"]');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.getAttribute('data-kind') === 'bar') { bar(el, value); continue; }
+      el.textContent = tx(el, value);
+      cl(el, value);
+    }
+    var bars = document.querySelectorAll('[data-kind="bar"][data-from="' + name + '"]');
+    for (var j = 0; j < bars.length; j++) bar(bars[j], value);
+    return true;
+  };
+  window.__setSlot('peri_count', '2');
+  window.__setSlot('mouse1_name', '雷柏 VT9PRO');
+  window.__setSlot('mouse1_pct', '56');
+  window.__setSlot('mouse1_status', '放电中');
+  window.__setSlot('kbd1_name', 'VGN S99');
+  window.__setSlot('kbd1_pct', '78');
+  window.__setSlot('kbd1_status', '充电中');
+  var q = new URLSearchParams(location.search);
+  q.forEach(function (v, k) { window.__setSlot(k, v); });
+})();
+</script>
+<script type="application/json" id="material-manifest">
+{
+  "schema": "rgb565-panel-material/1",
+  "name": "index",
+  "size": [
+    320,
+    240
+  ],
+  "background": "css",
+  "slots": [
+    {
+      "name": "mouse1_bar",
+      "kind": "bar",
+      "from": "mouse1_pct",
+      "max": 100
+    },
+    {
+      "name": "kbd1_bar",
+      "kind": "bar",
+      "from": "kbd1_pct",
+      "max": 100
+    },
+    {
+      "name": "peri_count",
+      "kind": "text",
+      "unit": "台"
+    },
+    {
+      "name": "mouse1_name",
+      "kind": "text"
+    },
+    {
+      "name": "mouse1_status",
+      "kind": "text"
+    },
+    {
+      "name": "mouse1_pct",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "kbd1_name",
+      "kind": "text"
+    },
+    {
+      "name": "kbd1_status",
+      "kind": "text"
+    },
+    {
+      "name": "kbd1_pct",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "%"
+    }
+  ]
+}
+</script>
+</body>
+</html>

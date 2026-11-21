@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<!--
+  P7 · 深蓝「工程蓝图」细线风（PC 性能监控）
+  画面：图框 + 数据盒；CPU / GPU / 内存 / 磁盘 + 温度 / 风扇。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>P7 · 系统蓝图</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 320px; height: 240px;
+    overflow: hidden;
+    background: #08172e;
+    font-family: "Consolas", "Microsoft YaHei", monospace;
+    display: block;
+  }
+  #stage { position: absolute; left: 0; top: 0; width: 320px; height: 240px; overflow: hidden; }
+  #img, #render, #text { position: absolute; left: 0; top: 0; width: 320px; height: 240px; }
+  #img { z-index: 1; } #render { z-index: 2; } #text { z-index: 3; }
+
+  /* ---- 主题：工程蓝图 ---- */
+  #img {
+    background:
+      linear-gradient(180deg, #08172e 0%, #061225 100%);
+  }
+  #img::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(120,190,255,.075) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,190,255,.075) 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+  .frame { position: absolute; border: 1px solid rgba(120,190,255,.45); }
+  .box   { position: absolute; border: 1px solid rgba(120,190,255,.35);
+           background: rgba(20,50,92,.30); }
+  .hair  { position: absolute; height: 1px; background: rgba(120,190,255,.28); }
+  .tick  { position: absolute; width: 1px; height: 5px; background: rgba(120,190,255,.45); }
+  .bar-track { position: absolute; height: 4px; background: rgba(120,190,255,.14); }
+  .bar { position: absolute; left: 0; top: 0; height: 4px;
+         background: #4da3ff; transition: none; }
+  .sweep { position: absolute; left: 0; top: 0; width: 1px; height: 240px; opacity: .30;
+           background: #7ec8ff;
+           animation: sw 5.5s linear infinite; }
+  @keyframes sw { 0%{left:6px} 100%{left:314px} }
+  .cm { position: absolute; width: 12px; height: 12px; }
+
+  .txt { position: absolute; line-height: 1; white-space: nowrap;
+         font-variant-numeric: tabular-nums; }
+  .ttl { font-size: 12px; font-weight: 700; color: #a8d4ff; letter-spacing: 3px; }
+  .rev { font-size: 10px; color: #7fa8d0; letter-spacing: 1px; }
+  .lbl { font-size: 11px; color: #8fb6dd; letter-spacing: 1px; }
+  .val { font-size: 24px; font-weight: 700; color: #eaf4ff; }
+  .unit{ font-size: 10px; color: #7fa8d0; }
+  .scale{ font-size: 10px; color: #86aed6; }
+  .foot{ font-size: 10px; color: #7fa8d0; letter-spacing: 1px; }
+  .warn   { color: #ffb648 !important; }
+  .danger { color: #ff6b6b !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="img"></div>
+
+  <div id="render">
+    <div class="frame" style="left:4px;top:4px;width:312px;height:232px;"></div>
+
+    <div class="cm" style="left:4px;top:4px;border-left:2px solid #7ec8ff;border-top:2px solid #7ec8ff;"></div>
+    <div class="cm" style="left:304px;top:4px;border-right:2px solid #7ec8ff;border-top:2px solid #7ec8ff;"></div>
+    <div class="cm" style="left:4px;top:224px;border-left:2px solid #7ec8ff;border-bottom:2px solid #7ec8ff;"></div>
+    <div class="cm" style="left:304px;top:224px;border-right:2px solid #7ec8ff;border-bottom:2px solid #7ec8ff;"></div>
+
+    <div class="sweep"></div>
+
+    <div class="hair" style="left:12px;top:30px;width:296px;"></div>
+    <div class="hair" style="left:12px;top:170px;width:296px;"></div>
+    <div class="hair" style="left:12px;top:222px;width:296px;"></div>
+
+    <div class="box" style="left:12px;top:36px;width:142px;height:60px;"></div>
+    <div class="box" style="left:166px;top:36px;width:142px;height:60px;"></div>
+    <div class="box" style="left:12px;top:102px;width:142px;height:60px;"></div>
+    <div class="box" style="left:166px;top:102px;width:142px;height:60px;"></div>
+
+    <div class="bar-track" style="left:20px;top:84px;width:126px;"></div>
+    <div class="bar-track" style="left:174px;top:84px;width:126px;"></div>
+    <div class="bar-track" style="left:20px;top:150px;width:126px;"></div>
+    <div class="bar-track" style="left:174px;top:150px;width:126px;"></div>
+
+  </div>
+
+  <div id="text">
+    <span class="txt ttl" style="left:14px;top:12px;">SYSTEM BLUEPRINT 系统蓝图</span>
+    <span class="txt rev" style="left:262px;top:13px;">REV 2.1</span>
+
+    <span class="txt lbl" style="left:20px;top:44px;">CPU 处理器</span>
+    <span class="txt val" data-slot="cpu_load" style="right:196px;top:58px;" data-fmt="0" data-warn="75" data-danger="90">{{cpu_load}}</span>
+    <span class="txt unit" style="left:128px;top:74px;">%</span>
+    <div class="bar" data-slot="bar1" data-kind="bar" data-from="cpu_load" data-max="100" data-box="20,84,126,4" style="left:20px;top:84px;width:0;"></div>
+
+    <span class="txt lbl" style="left:174px;top:44px;">GPU 显卡</span>
+    <span class="txt val" data-slot="gpu1_load" style="right:42px;top:58px;" data-fmt="0" data-warn="80" data-danger="92">{{gpu1_load}}</span>
+    <span class="txt unit" style="left:282px;top:74px;">%</span>
+    <div class="bar" data-slot="bar2" data-kind="bar" data-from="gpu1_load" data-max="100" data-box="174,84,126,4" style="left:174px;top:84px;width:0;"></div>
+
+    <span class="txt lbl" style="left:20px;top:110px;">MEM 内存</span>
+    <span class="txt val" data-slot="mem_pct" style="right:196px;top:124px;" data-fmt="0" data-warn="80" data-danger="92">{{mem_pct}}</span>
+    <span class="txt unit" style="left:128px;top:140px;">%</span>
+    <div class="bar" data-slot="bar3" data-kind="bar" data-from="mem_pct" data-max="100" data-box="20,150,126,4" style="left:20px;top:150px;width:0;"></div>
+
+    <span class="txt lbl" style="left:174px;top:110px;">DISK 磁盘</span>
+    <span class="txt val" data-slot="disk1_pct" style="right:42px;top:124px;" data-fmt="0" data-warn="85">{{disk1_pct}}</span>
+    <span class="txt unit" style="left:282px;top:140px;">%</span>
+    <div class="bar" data-slot="bar4" data-kind="bar" data-from="disk1_pct" data-max="100" data-box="174,150,126,4" style="left:174px;top:150px;width:0;"></div>
+
+    <span class="txt foot" style="left:14px;top:210px;">TEMP</span>
+    <span class="txt foot" data-slot="cpu_temp" style="left:52px;top:210px;color:#cfe4ff;" data-fmt="0" data-unit="℃" data-suffix="℃" data-warn="72" data-danger="85">{{cpu_temp}}</span>
+    <span class="txt foot" style="left:232px;top:210px;">FAN</span>
+    <span class="txt foot" data-slot="fan1" data-unit="RPM" style="left:258px;top:210px;color:#cfe4ff;" data-fmt="0" data-suffix=" RPM">{{fan1}}</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  function fmt(spec, raw) {
+    var v = parseFloat(raw);
+    if (isNaN(v)) return String(raw);
+    var dec = spec.getAttribute('data-fmt');
+    var s = (dec === null) ? String(raw) : v.toFixed(parseInt(dec, 10));
+    if (spec.getAttribute('data-group') === '1') s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return s + (spec.getAttribute('data-suffix') || '');
+  }
+  function thresholds(spec) {
+    var w = spec.getAttribute('data-warn'), d = spec.getAttribute('data-danger');
+    if (w === null && d === null && spec.getAttribute('data-from')) {
+      var src = document.querySelector('[data-slot="' + spec.getAttribute('data-from') + '"]');
+      if (src) { w = src.getAttribute('data-warn'); d = src.getAttribute('data-danger'); }
+    }
+    return [w === null ? null : parseFloat(w), d === null ? null : parseFloat(d)];
+  }
+  function paint(spec, raw) {
+    var v = parseFloat(raw), th = thresholds(spec);
+    spec.classList.toggle('warn',   th[0] !== null && v >= th[0] && !(th[1] !== null && v >= th[1]));
+    spec.classList.toggle('danger', th[1] !== null && v >= th[1]);
+  }
+  function setBar(spec, raw) {
+    var v = parseFloat(raw), max = parseFloat(spec.getAttribute('data-max') || '100');
+    var box = (spec.getAttribute('data-box') || '0,0,100,4').split(',');
+    spec.style.width = Math.round(Math.max(0, Math.min(1, (isNaN(v) ? 0 : v) / max)) * parseFloat(box[2])) + 'px';
+    paint(spec, raw);
+  }
+  window.__setSlot = function (name, value) {
+    var specs = document.querySelectorAll('[data-slot="' + name + '"]');
+    for (var i = 0; i < specs.length; i++) {
+      var el = specs[i];
+      if (el.getAttribute('data-kind') === 'bar') { setBar(el, value); continue; }
+      el.textContent = fmt(el, value);
+      paint(el, value);
+    }
+    var bars = document.querySelectorAll('[data-kind="bar"][data-from="' + name + '"]');
+    for (var j = 0; j < bars.length; j++) setBar(bars[j], value);
+    return true;
+  };
+  window.__setSlot('cpu_load', '42'); window.__setSlot('gpu1_load', '63'); window.__setSlot('mem_pct', '61');
+  window.__setSlot('disk1_pct', '55'); window.__setSlot('cpu_temp', '58'); window.__setSlot('fan1', '1420');
+  q.forEach(function (v, k) { window.__setSlot(k, v); });
+})();
+</script>
+<script type="application/json" id="material-manifest">
+{
+  "schema": "rgb565-panel-material/1",
+  "name": "p7_blueprint",
+  "size": [
+    320,
+    240
+  ],
+  "background": "css",
+  "slots": [
+    {
+      "name": "cpu_load",
+      "kind": "text",
+      "warn": 75,
+      "danger": 90,
+      "fmt": 0
+    },
+    {
+      "name": "bar1",
+      "kind": "bar",
+      "from": "cpu_load",
+      "max": 100
+    },
+    {
+      "name": "gpu1_load",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0
+    },
+    {
+      "name": "bar2",
+      "kind": "bar",
+      "from": "gpu1_load",
+      "max": 100
+    },
+    {
+      "name": "mem_pct",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0
+    },
+    {
+      "name": "bar3",
+      "kind": "bar",
+      "from": "mem_pct",
+      "max": 100
+    },
+    {
+      "name": "disk1_pct",
+      "kind": "text",
+      "warn": 85,
+      "fmt": 0
+    },
+    {
+      "name": "bar4",
+      "kind": "bar",
+      "from": "disk1_pct",
+      "max": 100
+    },
+    {
+      "name": "cpu_temp",
+      "kind": "text",
+      "warn": 72,
+      "danger": 85,
+      "fmt": 0,
+      "unit": "℃"
+    },
+    {
+      "name": "fan1",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "RPM"
+    }
+  ]
+}
+</script>
+</body>
+</html>

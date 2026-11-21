@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--
+  P4 · 浅灰 2x2 大格子网格（PC 性能监控）
+  画面：CPU / 内存 / GPU / 磁盘 + 网络上行 / 网络下行；每格 = 标签 + 大数值 + 条。
+  自身取舍：底色用中灰而非纯白。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>P4 · 四宫格</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 320px; height: 240px;
+    overflow: hidden;
+    background: #aeb8c2;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    display: block;
+  }
+  #stage { position: absolute; left: 0; top: 0; width: 320px; height: 240px; overflow: hidden; }
+  #img, #render, #text { position: absolute; left: 0; top: 0; width: 320px; height: 240px; }
+  #img { z-index: 1; } #render { z-index: 2; } #text { z-index: 3; }
+
+  /* ---- 主题：清爽浅灰 ---- */
+  #img { background: linear-gradient(160deg, #b4bec8 0%, #a6b0bb 100%); }
+  .cell { position: absolute; border-radius: 8px; background: #d2d9e0;
+          box-shadow: 0 1px 3px rgba(27,39,51,.16); }
+  .bar-track { position: absolute; height: 5px; border-radius: 3px; background: #b0bac5; }
+  .bar { position: absolute; left: 0; top: 0; height: 5px; border-radius: 3px;
+         background: linear-gradient(90deg, #2b7de9, #58a2f2); transition: none; }
+
+  .txt { position: absolute; line-height: 1; white-space: nowrap;
+         font-variant-numeric: tabular-nums; }
+  .ttl { font-size: 12px; font-weight: 700; color: #1b2733; letter-spacing: 1px; }
+  .lbl { font-size: 11px; color: #26333f; }
+  .big { font-size: 30px; font-weight: 700; color: #101a24; }
+  .unit{ font-size: 12px; color: #26333f; }
+  .foot{ font-size: 11px; color: #26333f; }
+  .warn   { color: #a4560a !important; }
+  .danger { color: #c0362c !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="img"></div>
+
+  <div id="render">
+    <div class="cell" style="left:8px;top:28px;width:148px;height:82px;"></div>
+    <div class="cell" style="left:164px;top:28px;width:148px;height:82px;"></div>
+    <div class="cell" style="left:8px;top:116px;width:148px;height:82px;"></div>
+    <div class="cell" style="left:164px;top:116px;width:148px;height:82px;"></div>
+
+    <div class="bar-track" style="left:20px;top:94px;width:124px;"></div>
+    <div class="bar-track" style="left:176px;top:94px;width:124px;"></div>
+    <div class="bar-track" style="left:20px;top:182px;width:124px;"></div>
+    <div class="bar-track" style="left:176px;top:182px;width:124px;"></div>
+
+    <div class="cell" style="left:8px;top:206px;width:304px;height:24px;"></div>
+  </div>
+
+  <div id="text">
+    <span class="txt ttl" style="left:12px;top:11px;">性能总览 OVERVIEW</span>
+    <span class="txt foot" style="left:248px;top:12px;">采样 0.5s</span>
+
+    <span class="txt lbl" style="left:20px;top:36px;">CPU 处理器</span>
+    <span class="txt big" data-slot="cpu_load" style="right:222px;top:48px;" data-fmt="0" data-warn="75" data-danger="90">{{cpu_load}}</span>
+    <span class="txt unit" style="left:100px;top:64px;">%</span>
+
+    <span class="txt lbl" style="left:176px;top:36px;">内存 MEM</span>
+    <span class="txt big" data-slot="mem_pct" style="right:66px;top:48px;" data-fmt="0" data-warn="80" data-danger="92">{{mem_pct}}</span>
+    <span class="txt unit" style="left:256px;top:64px;">%</span>
+
+    <span class="txt lbl" style="left:20px;top:124px;">GPU 显卡</span>
+    <span class="txt big" data-slot="gpu1_load" style="right:222px;top:136px;" data-fmt="0" data-warn="80" data-danger="92">{{gpu1_load}}</span>
+    <span class="txt unit" style="left:100px;top:152px;">%</span>
+
+    <span class="txt lbl" style="left:176px;top:124px;">磁盘 DISK</span>
+    <span class="txt big" data-slot="disk1_pct" style="right:66px;top:136px;" data-fmt="0" data-warn="85">{{disk1_pct}}</span>
+    <span class="txt unit" style="left:256px;top:152px;">%</span>
+
+    <div class="bar" data-slot="bar1" data-kind="bar" data-from="cpu_load" data-max="100" data-box="20,94,124,5" style="left:20px;top:94px;width:0;"></div>
+    <div class="bar" data-slot="bar2" data-kind="bar" data-from="mem_pct" data-max="100" data-box="176,94,124,5" style="left:176px;top:94px;width:0;"></div>
+    <div class="bar" data-slot="bar3" data-kind="bar" data-from="gpu1_load" data-max="100" data-box="20,182,124,5" style="left:20px;top:182px;width:0;"></div>
+    <div class="bar" data-slot="bar4" data-kind="bar" data-from="disk1_pct" data-max="100" data-box="176,182,124,5" style="left:176px;top:182px;width:0;"></div>
+
+    <span class="txt foot" style="left:20px;top:212px;">网络 NET</span>
+    <span class="txt foot" style="right:222px;top:212px;">↑</span>
+    <span class="txt foot" data-slot="net1_up" style="right:194px;top:212px;color:#101a24;" data-fmt="1">{{net1_up}}</span>
+    <span class="txt foot" style="right:154px;top:212px;">↓</span>
+    <span class="txt foot" data-slot="net1_down" style="right:118px;top:212px;color:#101a24;" data-fmt="1">{{net1_down}}</span>
+    <span class="txt foot" style="left:226px;top:212px;">KB/s</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  function fmt(spec, raw) {
+    var v = parseFloat(raw);
+    if (isNaN(v)) return String(raw);
+    var dec = spec.getAttribute('data-fmt');
+    var s = (dec === null) ? String(raw) : v.toFixed(parseInt(dec, 10));
+    if (spec.getAttribute('data-group') === '1') s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return s + (spec.getAttribute('data-suffix') || '');
+  }
+  function thresholds(spec) {
+    var w = spec.getAttribute('data-warn'), d = spec.getAttribute('data-danger');
+    if (w === null && d === null && spec.getAttribute('data-from')) {
+      var src = document.querySelector('[data-slot="' + spec.getAttribute('data-from') + '"]');
+      if (src) { w = src.getAttribute('data-warn'); d = src.getAttribute('data-danger'); }
+    }
+    return [w === null ? null : parseFloat(w), d === null ? null : parseFloat(d)];
+  }
+  function paint(spec, raw) {
+    var v = parseFloat(raw), th = thresholds(spec);
+    spec.classList.toggle('warn',   th[0] !== null && v >= th[0] && !(th[1] !== null && v >= th[1]));
+    spec.classList.toggle('danger', th[1] !== null && v >= th[1]);
+  }
+  function setBar(spec, raw) {
+    var v = parseFloat(raw), max = parseFloat(spec.getAttribute('data-max') || '100');
+    var box = (spec.getAttribute('data-box') || '0,0,100,4').split(',');
+    spec.style.width = Math.round(Math.max(0, Math.min(1, (isNaN(v) ? 0 : v) / max)) * parseFloat(box[2])) + 'px';
+    paint(spec, raw);
+  }
+  window.__setSlot = function (name, value) {
+    var specs = document.querySelectorAll('[data-slot="' + name + '"]');
+    for (var i = 0; i < specs.length; i++) {
+      var el = specs[i];
+      if (el.getAttribute('data-kind') === 'bar') { setBar(el, value); continue; }
+      el.textContent = fmt(el, value);
+      paint(el, value);
+    }
+    var bars = document.querySelectorAll('[data-kind="bar"][data-from="' + name + '"]');
+    for (var j = 0; j < bars.length; j++) setBar(bars[j], value);
+    return true;
+  };
+  window.__setSlot('cpu_load', '42'); window.__setSlot('mem_pct', '61'); window.__setSlot('gpu1_load', '63');
+  window.__setSlot('disk1_pct', '55'); window.__setSlot('net1_up', '12.4'); window.__setSlot('net1_down', '88.1');
+  q.forEach(function (v, k) { window.__setSlot(k, v); });
+})();
+</script>
+<script type="application/json" id="material-manifest">
+{
+  "schema": "rgb565-panel-material/1",
+  "name": "p4_light_grid",
+  "size": [
+    320,
+    240
+  ],
+  "background": "css",
+  "slots": [
+    {
+      "name": "cpu_load",
+      "kind": "text",
+      "warn": 75,
+      "danger": 90,
+      "fmt": 0
+    },
+    {
+      "name": "mem_pct",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0
+    },
+    {
+      "name": "gpu1_load",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0
+    },
+    {
+      "name": "disk1_pct",
+      "kind": "text",
+      "warn": 85,
+      "fmt": 0
+    },
+    {
+      "name": "bar1",
+      "kind": "bar",
+      "from": "cpu_load",
+      "max": 100
+    },
+    {
+      "name": "bar2",
+      "kind": "bar",
+      "from": "mem_pct",
+      "max": 100
+    },
+    {
+      "name": "bar3",
+      "kind": "bar",
+      "from": "gpu1_load",
+      "max": 100
+    },
+    {
+      "name": "bar4",
+      "kind": "bar",
+      "from": "disk1_pct",
+      "max": 100
+    },
+    {
+      "name": "net1_up",
+      "kind": "text",
+      "fmt": 1
+    },
+    {
+      "name": "net1_down",
+      "kind": "text",
+      "fmt": 1
+    }
+  ]
+}
+</script>
+</body>
+</html>

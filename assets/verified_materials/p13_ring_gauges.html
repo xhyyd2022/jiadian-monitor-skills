@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<!--
+  P13 · 圆环仪表盘 Ring Gauges（PC 性能监控）
+  画面：三个 conic-gradient 圆环，内圆挖孔成环。
+  自身取舍：不依赖 mask；环进度用扩展 kind「ring」（与 bar 同构）；底色 #bcc3cb（~76%）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>P13 · 圆环仪表</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 320px; height: 240px;
+    overflow: hidden; display: block;
+    background: #bcc3cb;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  }
+  #stage { position: absolute; left: 0; top: 0; width: 320px; height: 240px; overflow: hidden; }
+  #img, #render, #text { position: absolute; left: 0; top: 0; width: 320px; height: 240px; }
+  #img { z-index: 1; } #render { z-index: 2; } #text { z-index: 3; }
+
+  #img { background: linear-gradient(180deg, #c1c8cf 0%, #b6bec6 100%); }
+
+  /* 圆环：conic-gradient 画弧，内圆挖孔靠叠一个同底色实心圆 */
+  .ring { position: absolute; border-radius: 50%;
+          background: conic-gradient(currentColor 0deg var(--deg, 0deg),
+                                     rgba(124,136,150,.30) var(--deg, 0deg) 360deg);
+          color: #2f6fd0; }
+  .ring.warn   { color: #b87700; }
+  .ring.danger { color: #b3281f; }
+  .hole { position: absolute; border-radius: 50%; background: #bcc3cb;
+          box-shadow: inset 2px 2px 7px rgba(120,130,145,.30),
+                      inset -2px -2px 7px rgba(255,255,255,.55); }
+  .hair { position: absolute; height: 1px; background: #97a0aa; }
+
+  .txt { position: absolute; line-height: 1; white-space: nowrap;
+         font-variant-numeric: tabular-nums; }
+  .ttl { font-size: 13px; font-weight: 700; color: #232a35; letter-spacing: 1px; }
+  .live{ font-size: 11px; color: #333c47; letter-spacing: 1px; }
+  .val { font-size: 20px; font-weight: 700; color: #232a35; text-align: center; }
+  .lbl { font-size: 11px; color: #333c47; letter-spacing: 1px; }
+  .bv  { font-size: 18px; font-weight: 700; color: #232a35; }
+  .warn   { color: #5b3200 !important; }
+  .danger { color: #6f1a12 !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="img"></div>
+
+  <div id="render">
+    <div class="ring" data-slot="ring1" data-kind="ring" data-from="cpu_load" data-max="100" style="left:20px;top:48px;width:88px;height:88px;"></div>
+    <div class="ring" data-slot="ring2" data-kind="ring" data-from="mem_pct" data-max="100" style="left:116px;top:48px;width:88px;height:88px;"></div>
+    <div class="ring" data-slot="ring3" data-kind="ring" data-from="gpu1_load" data-max="100" data-warn="80" data-danger="92" data-warn="80" data-danger="92" data-warn="80" data-danger="92" style="left:212px;top:48px;width:88px;height:88px;"></div>
+
+    <div class="hole" style="left:34px;top:62px;width:60px;height:60px;"></div>
+    <div class="hole" style="left:130px;top:62px;width:60px;height:60px;"></div>
+    <div class="hole" style="left:226px;top:62px;width:60px;height:60px;"></div>
+
+    <div class="hair" style="left:16px;top:170px;width:288px;"></div>
+  </div>
+
+  <div id="text">
+    <span class="txt ttl" style="left:16px;top:14px;">资源仪表 RESOURCE</span>
+    <span class="txt live" style="right:16px;top:15px;">实时 LIVE</span>
+
+    <span class="txt val" data-slot="cpu_load" style="left:34px;top:82px;width:60px;" data-fmt="0" data-unit="%" data-suffix="%" data-warn="75" data-danger="90">{{cpu_load}}</span>
+    <span class="txt val" data-slot="mem_pct" style="left:130px;top:82px;width:60px;" data-fmt="0" data-unit="%" data-suffix="%" data-warn="80" data-danger="92">{{mem_pct}}</span>
+    <span class="txt val" data-slot="gpu1_load" style="left:226px;top:82px;width:60px;" data-fmt="0" data-unit="%" data-suffix="%" data-warn="80" data-danger="92">{{gpu1_load}}</span>
+
+    <span class="txt lbl" style="left:33px;top:144px;">CPU 处理器</span>
+    <span class="txt lbl" style="left:129px;top:144px;">内存 MEM</span>
+    <span class="txt lbl" style="left:230px;top:144px;">GPU 显卡</span>
+
+    <span class="txt lbl" style="left:24px;top:182px;">磁盘 DISK</span>
+    <span class="txt bv" data-slot="disk1_pct" style="left:24px;top:198px;" data-fmt="0" data-unit="%" data-suffix="%" data-warn="85">{{disk1_pct}}</span>
+
+    <span class="txt lbl" style="left:122px;top:182px;">温度 TEMP</span>
+    <span class="txt bv" data-slot="cpu_temp" style="left:122px;top:198px;" data-fmt="0" data-unit="℃" data-suffix="℃" data-warn="72" data-danger="85">{{cpu_temp}}</span>
+
+    <span class="txt lbl" style="left:220px;top:182px;">风扇 FAN</span>
+    <span class="txt bv" data-slot="fan1" style="left:220px;top:198px;" data-fmt="0" data-unit="RPM" data-suffix=" RPM">{{fan1}}</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  function tx(el, raw) {
+    var v = parseFloat(raw);
+    if (isNaN(v)) return String(raw);
+    var d = el.getAttribute('data-fmt');
+    var s = (d === null) ? String(raw) : v.toFixed(parseInt(d, 10));
+    if (el.getAttribute('data-group') === '1') s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return s + (el.getAttribute('data-suffix') || '');
+  }
+  function th(el) {
+    var w = el.getAttribute('data-warn'), g = el.getAttribute('data-danger');
+    if (w === null && g === null && el.getAttribute('data-from')) {
+      var s = document.querySelector('[data-slot="' + el.getAttribute('data-from') + '"]');
+      if (s) { w = s.getAttribute('data-warn'); g = s.getAttribute('data-danger'); }
+    }
+    return [w === null ? null : parseFloat(w), g === null ? null : parseFloat(g)];
+  }
+  function cl(el, raw) {
+    var v = parseFloat(raw), t = th(el);
+    el.classList.toggle('warn',   t[0] !== null && v >= t[0] && !(t[1] !== null && v >= t[1]));
+    el.classList.toggle('danger', t[1] !== null && v >= t[1]);
+  }
+  function bar(el, raw) {
+    var v = parseFloat(raw), m = parseFloat(el.getAttribute('data-max') || '100');
+    var b = (el.getAttribute('data-box') || '0,0,100,4').split(',');
+    el.style.width = Math.round(Math.max(0, Math.min(1, (isNaN(v) ? 0 : v) / m)) * parseFloat(b[2])) + 'px';
+    cl(el, raw);
+  }
+  /* 扩展：环形表 —— 与 bar 同构，只是把比值映射成角度而不是宽度 */
+  function ring(el, raw) {
+    var v = parseFloat(raw), m = parseFloat(el.getAttribute('data-max') || '100');
+    var p = Math.max(0, Math.min(1, (isNaN(v) ? 0 : v) / m));
+    el.style.setProperty('--deg', (p * 360).toFixed(1) + 'deg');
+    cl(el, raw);
+  }
+  window.__setSlot = function (name, value) {
+    var sp = document.querySelectorAll('[data-slot="' + name + '"]');
+    for (var i = 0; i < sp.length; i++) {
+      var k = sp[i].getAttribute('data-kind');
+      if (k === 'bar')  { bar(sp[i], value);  continue; }
+      if (k === 'ring') { ring(sp[i], value); continue; }
+      sp[i].textContent = tx(sp[i], value); cl(sp[i], value);
+    }
+    var bs = document.querySelectorAll('[data-kind="bar"][data-from="' + name + '"]');
+    for (var j = 0; j < bs.length; j++) bar(bs[j], value);
+    var rs = document.querySelectorAll('[data-kind="ring"][data-from="' + name + '"]');
+    for (var q = 0; q < rs.length; q++) ring(rs[q], value);
+    return true;
+  };
+  window.__setSlot('cpu_load', '42'); window.__setSlot('mem_pct', '61'); window.__setSlot('gpu1_load', '63');
+  window.__setSlot('disk1_pct', '55'); window.__setSlot('cpu_temp', '58'); window.__setSlot('fan1', '1420');
+  new URLSearchParams(location.search).forEach(function (v, k) { window.__setSlot(k, v); });
+})();
+</script>
+<script type="application/json" id="material-manifest">
+{
+  "schema": "rgb565-panel-material/1",
+  "name": "p13_ring_gauges",
+  "size": [
+    320,
+    240
+  ],
+  "background": "css",
+  "slots": [
+    {
+      "name": "ring1",
+      "kind": "ring",
+      "from": "cpu_load",
+      "max": 100
+    },
+    {
+      "name": "ring2",
+      "kind": "ring",
+      "from": "mem_pct",
+      "max": 100
+    },
+    {
+      "name": "ring3",
+      "kind": "ring",
+      "from": "gpu1_load",
+      "max": 100,
+      "warn": 80,
+      "danger": 92
+    },
+    {
+      "name": "cpu_load",
+      "kind": "text",
+      "warn": 75,
+      "danger": 90,
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "mem_pct",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "gpu1_load",
+      "kind": "text",
+      "warn": 80,
+      "danger": 92,
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "disk1_pct",
+      "kind": "text",
+      "warn": 85,
+      "fmt": 0,
+      "unit": "%"
+    },
+    {
+      "name": "cpu_temp",
+      "kind": "text",
+      "warn": 72,
+      "danger": 85,
+      "fmt": 0,
+      "unit": "℃"
+    },
+    {
+      "name": "fan1",
+      "kind": "text",
+      "fmt": 0,
+      "unit": "RPM"
+    }
+  ]
+}
+</script>
+</body>
+</html>
