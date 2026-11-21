@@ -27,6 +27,9 @@ see: references/contract.md, references/self_check_gates.md
 ---
 
 ```text
+▷ 技能仓库：https://github.com/xhyyd2022/jiadian-monitor-skills
+  需要完整规范、检查脚本与已验收样例时，可先阅读仓库中的 SKILL.md。
+
 ════════════════ 【任务】 ════════════════
 你是前端工程师。请生成【一个单文件 HTML】，在一块嵌入式 RGB565 屏上显示一块动态面板。
 设备联网（其实是上位机所在电脑联网，面板在电脑的 WebView2 里渲染），可引用外部 CDN / 图片 / 字体；页面逻辑全写在这一个文件里。
