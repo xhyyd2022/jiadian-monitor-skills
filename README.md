@@ -57,4 +57,9 @@ python scripts/describe.py --check
 
 ## 许可
 
-本技能随主项目发布，使用前请阅读主项目的 [LICENSE](https://github.com/xhyyd2022/jiadian-monitor/blob/main/LICENSE)（PolyForm Noncommercial 1.0.0，禁止商业使用）。
+本技能的文档、提示词、参考素材与生成的素材采用
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)（署名—非商业性使用—相同方式共享 4.0 国际）。
+
+你可以非商业地复制、修改、再分发，但必须保留署名、注明修改，并以相同许可共享；完整条款见 [LICENSE](LICENSE)。
+
+主程序代码使用另一套许可：PolyForm Noncommercial 1.0.0（源码可见，禁止商业使用）。
