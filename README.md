@@ -14,19 +14,9 @@
 
 ## 安装
 
-把整个目录放进技能目录，例如用户级：
+把本仓库链接直接丢给 AI，让它按 `SKILL.md` 安装到技能目录即可。
 
-```bash
-cp -r jiadian-monitor-skills ~/.workbuddy/skills/
-```
-
-或项目级：
-
-```bash
-cp -r jiadian-monitor-skills .workbuddy/skills/
-```
-
-然后让 AI 读取 `SKILL.md`，或直接把本仓库链接发给它。
+也可以手动克隆后，把整个文件夹放进你的技能目录；不需要改代码，也不需要额外依赖。
 
 ## 使用
 
